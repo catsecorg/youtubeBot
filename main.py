@@ -5,6 +5,7 @@ import time
 
 
 from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -12,8 +13,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 
 class ViewBot(multiprocessing.Process):
-    def __init__(self, pro, only_view, runtime_views, runtime, url):
+    def __init__(self, pro, headless, only_view, runtime_views, runtime, url):
         self.pro = pro
+        self.headless = headless
         self.only_view = only_view
         self.runtime_views = runtime_views
         self.runtime = runtime
@@ -35,8 +37,12 @@ class ViewBot(multiprocessing.Process):
         #    # Open URL
         #    driver.get(url)
 
-
-        driver = webdriver.Firefox()
+        options = Options()
+        if self.headless: 
+            options.headless = True
+        
+        driver = webdriver.Firefox(options=options) # executable_path=r"/usr/bin/geckodriver"
+        driver.delete_all_cookies()
         driver.get(self.url)
 
         # Get video duration for refresh time
@@ -45,9 +51,8 @@ class ViewBot(multiprocessing.Process):
         runtime_calc = runtime_full.split(":")
         runtime_max_sec = (((int(runtime_calc[0]) * 60) / 100) * int(self.runtime))
         print(runtime_max_sec)
-
         # Signin popup for sponsoered videos
-        if self.pro is not None:
+        if self.pro:
             try:
                 sponsored_login = WebDriverWait(driver, 10).until(
                     EC.visibility_of_element_located((By.XPATH, "//div[@id='dismiss-button']")))
@@ -117,10 +122,18 @@ if __name__ == '__main__':
                             nargs='?', help='Number of threads. Arg must be an int')
 
         parser.add_argument('--pro',
-                            default=None,
+                            default=True,
+                            type = bool,
                             nargs='?',
                             metavar='',
-                            help='Chanel is a payed from youtube')
+                            help='Channel is a payed from youtube')
+
+        parser.add_argument('--headless',
+                    default=False,
+                    type= bool,
+                    nargs='?',
+                    metavar='',
+                    help='Headless Browser Option')
 
         parser.add_argument('--only_view',
                             default=None,
@@ -150,17 +163,18 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         pro = args.pro
+        headless = args.headless
         only_view = args.only_view
         runtime_views = args.runtime_views
         runtime = args.runtime
         url = args.url
         workers = []
 
-        YoutubeBot = ViewBot(pro=pro, only_view=only_view, runtime_views=runtime_views, runtime=runtime, url=url)
+        YoutubeBot = ViewBot(pro=pro, only_view=only_view, headless= headless, runtime_views=runtime_views, runtime=runtime, url=url)
         YoutubeBot.runBot()
 
         for i in range(0,args.threads):
-            YoutubeBot = ViewBot(pro=pro, only_view=only_view, runtime_views=runtime_views, runtime=runtime, url=url)
+            YoutubeBot = ViewBot(pro=pro,headless= headless, only_view=only_view, runtime_views=runtime_views, runtime=runtime, url=url)
             YoutubeBot.start()
             workers.append(YoutubeBot)
 
